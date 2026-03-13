@@ -10,48 +10,50 @@
       font-family: Arial, sans-serif;
       margin: 30px;
     }
-
     h1 {
       margin-bottom: 20px;
     }
-
     input {
       margin-bottom: 15px;
-      padding: 8px;
-      width: 300px;
+      padding: 10px;
+      width: 320px;
       max-width: 100%;
+      font-size: 16px;
     }
-
     table {
       border-collapse: collapse;
       width: 100%;
       font-size: 14px;
     }
-
     th, td {
       border: 1px solid #ccc;
       padding: 8px;
       text-align: left;
     }
-
     th {
       background: #f4f4f4;
       cursor: pointer;
     }
-
     tr:nth-child(even) {
       background: #fafafa;
+    }
+    #status {
+      margin: 10px 0 20px;
+      color: #666;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <h1>Scotland 500</h1>
   <input type="text" id="searchInput" placeholder="Search table...">
+  <div id="status">Loading data...</div>
   <table id="csvTable"></table>
 
   <script>
-    const csvFile = "one-page-list.csv";
+    const csvFile = "./one-page-list.csv";
     let tableData = [];
+    let filteredData = [];
     let headers = [];
     let sortDirection = {};
 
@@ -59,7 +61,7 @@
       const table = document.getElementById("csvTable");
       table.innerHTML = "";
 
-      if (!data.length) {
+      if (!data || data.length === 0) {
         table.innerHTML = "<tr><td>No data found</td></tr>";
         return;
       }
@@ -96,43 +98,58 @@
       const header = headers[columnIndex];
       sortDirection[header] = !sortDirection[header];
 
-      tableData.sort((a, b) => {
+      filteredData.sort((a, b) => {
         const valA = String(a[header] ?? "");
         const valB = String(b[header] ?? "");
-
         return sortDirection[header]
           ? valA.localeCompare(valB, undefined, { numeric: true })
           : valB.localeCompare(valA, undefined, { numeric: true });
       });
 
-      renderTable(tableData);
+      renderTable(filteredData);
     }
 
     function filterTable(searchTerm) {
-      const filtered = tableData.filter(row =>
+      const term = searchTerm.toLowerCase();
+      filteredData = tableData.filter(row =>
         headers.some(header =>
-          String(row[header] ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+          String(row[header] ?? "").toLowerCase().includes(term)
         )
       );
-      renderTable(filtered);
+      renderTable(filteredData);
+      document.getElementById("status").textContent = `${filteredData.length} rows shown`;
     }
 
     Papa.parse(csvFile, {
       download: true,
       header: true,
       skipEmptyLines: true,
+      dynamicTyping: false,
       complete: function(results) {
-        tableData = results.data;
-        if (tableData.length > 0) {
-          headers = Object.keys(tableData[0]);
-          renderTable(tableData);
-        } else {
-          document.getElementById("csvTable").innerHTML = "<tr><td>No data found</td></tr>";
+        console.log("CSV loaded:", results);
+
+        if (results.errors && results.errors.length) {
+          document.getElementById("status").textContent =
+            "CSV loaded with errors: " + results.errors[0].message;
+          console.log(results.errors);
         }
+
+        tableData = results.data || [];
+
+        if (tableData.length === 0) {
+          document.getElementById("status").textContent = "No rows found in CSV";
+          renderTable([]);
+          return;
+        }
+
+        headers = Object.keys(tableData[0]);
+        filteredData = [...tableData];
+        renderTable(filteredData);
+        document.getElementById("status").textContent = `${filteredData.length} rows loaded`;
       },
       error: function(err) {
-        document.getElementById("csvTable").innerHTML =
-          "<tr><td>Error loading CSV: " + err.message + "</td></tr>";
+        console.log("CSV load error:", err);
+        document.getElementById("status").textContent = "Error loading CSV: " + err.message;
       }
     });
 
