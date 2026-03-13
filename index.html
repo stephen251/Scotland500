@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV Table</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      margin-bottom: 15px;
+      padding: 8px;
+      width: 300px;
+      max-width: 100%;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f4f4f4;
+      cursor: pointer;
+    }
+
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <h1>Public CSV Table</h1>
+  <input type="text" id="searchInput" placeholder="Search table...">
+  <table id="csvTable"></table>
+
+  <script>
+    const csvFile = "data2.csv";
+    let tableData = [];
+    let headers = [];
+    let sortDirection = {};
+
+    function renderTable(data) {
+      const table = document.getElementById("csvTable");
+      table.innerHTML = "";
+
+      if (!data.length) {
+        table.innerHTML = "<tr><td>No data found</td></tr>";
+        return;
+      }
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+
+      headers.forEach((header, index) => {
+        const th = document.createElement("th");
+        th.textContent = header;
+        th.addEventListener("click", () => sortTable(index));
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        row.forEach(cell => {
+          const td = document.createElement("td");
+          td.textContent = cell;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+    }
+
+    function sortTable(columnIndex) {
+      sortDirection[columnIndex] = !sortDirection[columnIndex];
+
+      tableData.sort((a, b) => {
+        const valA = a[columnIndex] || "";
+        const valB = b[columnIndex] || "";
+
+        return sortDirection[columnIndex]
+          ? valA.localeCompare(valB, undefined, { numeric: true })
+          : valB.localeCompare(valA, undefined, { numeric: true });
+      });
+
+      renderTable(tableData);
+    }
+
+    function filterTable(searchTerm) {
+      const filtered = tableData.filter(row =>
+        row.some(cell =>
+          String(cell).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+      renderTable(filtered);
+    }
+
+    Papa.parse(csvFile, {
+      download: true,
+      complete: function(results) {
+        headers = results.data[0];
+        tableData = results.data.slice(1).filter(row => row.length && row.some(cell => cell !== ""));
+        renderTable(tableData);
+
+        document.getElementById("searchInput").addEventListener("input", function() {
+          filterTable(this.value);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
